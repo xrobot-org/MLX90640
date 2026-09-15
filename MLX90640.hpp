@@ -3,18 +3,6 @@
 // clang-format off
 /* === MODULE MANIFEST V2 ===
 module_description: XRobot Module for Melexis MLX90640 32x24 thermal IR array sensor
-constructor_args:
-  - refresh_rate: MLX90640::RefreshRate::HZ_8
-  - emissivity: 0.95
-  - reflected_temperature_shift: 8.0
-  - use_chess_mode: true
-  - temperature_topic_name: "mlx90640_temperature"
-  - image_topic_name: "mlx90640_image"
-  - stats_topic_name: "mlx90640_stats"
-  - i2c_name: "mlx90640_i2c"
-  - i2c_address: 0x33
-template_args: []
-required_hardware: mlx90640_i2c
 depends: []
 === END MANIFEST === */
 // clang-format on
@@ -23,20 +11,21 @@ depends: []
 #include <cstddef>
 #include <cstdint>
 
-#include "app_framework.hpp"
 #include "i2c.hpp"
 #include "message.hpp"
 #include "mutex.hpp"
 #include "ramfs.hpp"
 #include "thread.hpp"
 
-class MLX90640 : public LibXR::Application {
+class MLX90640
+{
  public:
   static constexpr std::size_t WIDTH = 32;
   static constexpr std::size_t HEIGHT = 24;
   static constexpr std::size_t PIXEL_COUNT = WIDTH * HEIGHT;
 
-  enum class RefreshRate : uint8_t {
+  enum class RefreshRate : uint8_t
+  {
     HZ_0_5 = 0,
     HZ_1 = 1,
     HZ_2 = 2,
@@ -47,7 +36,8 @@ class MLX90640 : public LibXR::Application {
     HZ_64 = 7,
   };
 
-  struct ThermalFrame {
+  struct ThermalFrame
+  {
     uint32_t frame_counter = 0;
     float ambient_temperature = 0.0f;
     float reflected_temperature = 0.0f;
@@ -57,14 +47,16 @@ class MLX90640 : public LibXR::Application {
     std::array<float, PIXEL_COUNT> temperature = {};
   };
 
-  struct ThermalImage {
+  struct ThermalImage
+  {
     uint32_t frame_counter = 0;
     float min_value = 0.0f;
     float max_value = 0.0f;
     std::array<float, PIXEL_COUNT> image = {};
   };
 
-  struct ThermalStats {
+  struct ThermalStats
+  {
     uint32_t frame_counter = 0;
     float ambient_temperature = 0.0f;
     float reflected_temperature = 0.0f;
@@ -79,14 +71,13 @@ class MLX90640 : public LibXR::Application {
     bool ready = false;
   };
 
-  MLX90640(LibXR::HardwareContainer& hw, LibXR::ApplicationManager& app,
-           RefreshRate refresh_rate, float emissivity,
-           float reflected_temperature_shift, bool use_chess_mode,
-           const char* temperature_topic_name, const char* image_topic_name,
-           const char* stats_topic_name, const char* i2c_name,
+  MLX90640(LibXR::I2C& external_i2c_name, LibXR::RamFS* external_ramfs,
+           RefreshRate refresh_rate, float emissivity, float reflected_temperature_shift,
+           bool use_chess_mode, const char* temperature_topic_name,
+           const char* image_topic_name, const char* stats_topic_name,
            uint8_t i2c_address = 0x33);
 
-  void OnMonitor() override {}
+  void OnMonitor() {}
 
  private:
   static constexpr uint8_t DEFAULT_ADDRESS = 0x33;
@@ -111,14 +102,12 @@ class MLX90640 : public LibXR::Application {
   static constexpr uint16_t STATUS_FRAME_MASK = 0x0001;
   static constexpr uint16_t STATUS_DATA_READY_MASK = 0x0008;
   static constexpr uint16_t CONTROL_TRIGGER_MASK = 0x8000;
-  static constexpr uint16_t CONTROL_REFRESH_MASK =
-      static_cast<uint16_t>(~(0x7U << 7U));
+  static constexpr uint16_t CONTROL_REFRESH_MASK = static_cast<uint16_t>(~(0x7U << 7U));
   static constexpr uint16_t CONTROL_RESOLUTION_MASK =
       static_cast<uint16_t>(~(0x3U << 10U));
   static constexpr uint16_t CONTROL_MODE_MASK = 0x1000;
 
-  static constexpr std::size_t CONTROL_WORD_INDEX =
-      PIXEL_COUNT + AUX_COUNT;
+  static constexpr std::size_t CONTROL_WORD_INDEX = PIXEL_COUNT + AUX_COUNT;
   static constexpr std::size_t SUBPAGE_WORD_INDEX = CONTROL_WORD_INDEX + 1U;
 
   static constexpr std::size_t COMPENSATION_PIXEL0_INDEX = 776U;
@@ -133,16 +122,13 @@ class MLX90640 : public LibXR::Application {
   static constexpr uint32_t MANUAL_TRIGGER_DELAY_MS = 1000;
   static constexpr uint32_t DATA_READY_POLL_DELAY_MS = 10;
   static constexpr uint8_t SUBPAGE_MASK_COMPLETE = 0x03;
-  static constexpr uint32_t CENTER_PIXEL_INDEX =
-      (HEIGHT / 2U) * WIDTH + (WIDTH / 2U);
-  static_assert(PIXEL_COUNT == WIDTH * HEIGHT,
-                "MLX90640 pixel count mismatch");
-  static_assert(FRAME_COUNT == 834U,
-                "MLX90640 frame size mismatch");
-  static_assert(EEPROM_COUNT == 832U,
-                "MLX90640 EEPROM size mismatch");
+  static constexpr uint32_t CENTER_PIXEL_INDEX = (HEIGHT / 2U) * WIDTH + (WIDTH / 2U);
+  static_assert(PIXEL_COUNT == WIDTH * HEIGHT, "MLX90640 pixel count mismatch");
+  static_assert(FRAME_COUNT == 834U, "MLX90640 frame size mismatch");
+  static_assert(EEPROM_COUNT == 832U, "MLX90640 EEPROM size mismatch");
 
-  struct CalibrationData {
+  struct CalibrationData
+  {
     std::array<uint16_t, EEPROM_COUNT> words = {};
     int16_t k_vdd = 0;
     int16_t vdd_25 = 0;
@@ -169,15 +155,16 @@ class MLX90640 : public LibXR::Application {
     std::array<float, 2> cp_alpha = {};
     std::array<int16_t, 2> cp_offset = {};
     std::array<float, 3> il_chess_c = {};
-    std::array<uint16_t, BAD_PIXEL_TABLE_SIZE> broken_pixels = {
-        0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF};
-    std::array<uint16_t, BAD_PIXEL_TABLE_SIZE> outlier_pixels = {
-        0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF};
+    std::array<uint16_t, BAD_PIXEL_TABLE_SIZE> broken_pixels = {0xFFFF, 0xFFFF, 0xFFFF,
+                                                                0xFFFF, 0xFFFF};
+    std::array<uint16_t, BAD_PIXEL_TABLE_SIZE> outlier_pixels = {0xFFFF, 0xFFFF, 0xFFFF,
+                                                                 0xFFFF, 0xFFFF};
     bool valid = false;
     bool calibrated_temperature = false;
   };
 
-  struct FrameBuffer {
+  struct FrameBuffer
+  {
     std::array<uint16_t, FRAME_COUNT> words = {};
     uint16_t status_register = 0;
     uint16_t control_register = 0;
@@ -185,7 +172,8 @@ class MLX90640 : public LibXR::Application {
     bool valid = false;
   };
 
-  struct ProcessingResult {
+  struct ProcessingResult
+  {
     float ambient_temperature = 25.0f;
     float reflected_temperature = 17.0f;
     float supply_voltage = 3.3f;
@@ -196,8 +184,7 @@ class MLX90640 : public LibXR::Application {
 
   static bool IsDataReady(uint16_t status_register);
   static uint8_t GetSubpage(uint16_t status_register);
-  static uint16_t SetRefreshRateBits(uint16_t control_register,
-                                     uint8_t refresh_rate);
+  static uint16_t SetRefreshRateBits(uint16_t control_register, uint8_t refresh_rate);
   static uint16_t SetTriggerBit(uint16_t control_register);
   static uint16_t SetModeBits(uint16_t control_register, bool use_chess_mode);
   static uint8_t GetMode(uint16_t control_register);
@@ -208,54 +195,38 @@ class MLX90640 : public LibXR::Application {
   static int16_t ReadSignedWord(uint16_t word);
   static uint8_t Byte(uint16_t value, uint8_t index);
   static uint8_t Nibble(uint16_t value, uint8_t index);
-  static LibXR::ErrorCode CheckAdjacentPixels(uint16_t pixel_a,
-                                               uint16_t pixel_b);
+  static LibXR::ErrorCode CheckAdjacentPixels(uint16_t pixel_a, uint16_t pixel_b);
   static float GetMedian(std::array<float, 4> values);
 
-  static void ExtractVddParameters(
-      const std::array<uint16_t, EEPROM_COUNT>& ee_data,
-      CalibrationData& calibration);
-  static void ExtractPtatParameters(
-      const std::array<uint16_t, EEPROM_COUNT>& ee_data,
-      CalibrationData& calibration);
-  static void ExtractGainParameters(
-      const std::array<uint16_t, EEPROM_COUNT>& ee_data,
-      CalibrationData& calibration);
-  static void ExtractTgcParameters(
-      const std::array<uint16_t, EEPROM_COUNT>& ee_data,
-      CalibrationData& calibration);
+  static void ExtractVddParameters(const std::array<uint16_t, EEPROM_COUNT>& ee_data,
+                                   CalibrationData& calibration);
+  static void ExtractPtatParameters(const std::array<uint16_t, EEPROM_COUNT>& ee_data,
+                                    CalibrationData& calibration);
+  static void ExtractGainParameters(const std::array<uint16_t, EEPROM_COUNT>& ee_data,
+                                    CalibrationData& calibration);
+  static void ExtractTgcParameters(const std::array<uint16_t, EEPROM_COUNT>& ee_data,
+                                   CalibrationData& calibration);
   static void ExtractResolutionParameters(
-      const std::array<uint16_t, EEPROM_COUNT>& ee_data,
-      CalibrationData& calibration);
-  static void ExtractKsTaParameters(
-      const std::array<uint16_t, EEPROM_COUNT>& ee_data,
-      CalibrationData& calibration);
-  static void ExtractKsToParameters(
-      const std::array<uint16_t, EEPROM_COUNT>& ee_data,
-      CalibrationData& calibration);
-  static void ExtractCpParameters(
-      const std::array<uint16_t, EEPROM_COUNT>& ee_data,
-      CalibrationData& calibration);
-  static void ExtractAlphaParameters(
-      const std::array<uint16_t, EEPROM_COUNT>& ee_data,
-      CalibrationData& calibration);
-  static void ExtractOffsetParameters(
-      const std::array<uint16_t, EEPROM_COUNT>& ee_data,
-      CalibrationData& calibration);
-  static void ExtractKtaPixelParameters(
-      const std::array<uint16_t, EEPROM_COUNT>& ee_data,
-      CalibrationData& calibration);
-  static void ExtractKvPixelParameters(
-      const std::array<uint16_t, EEPROM_COUNT>& ee_data,
-      CalibrationData& calibration);
-  static void ExtractCilcParameters(
-      const std::array<uint16_t, EEPROM_COUNT>& ee_data,
-      CalibrationData& calibration);
+      const std::array<uint16_t, EEPROM_COUNT>& ee_data, CalibrationData& calibration);
+  static void ExtractKsTaParameters(const std::array<uint16_t, EEPROM_COUNT>& ee_data,
+                                    CalibrationData& calibration);
+  static void ExtractKsToParameters(const std::array<uint16_t, EEPROM_COUNT>& ee_data,
+                                    CalibrationData& calibration);
+  static void ExtractCpParameters(const std::array<uint16_t, EEPROM_COUNT>& ee_data,
+                                  CalibrationData& calibration);
+  static void ExtractAlphaParameters(const std::array<uint16_t, EEPROM_COUNT>& ee_data,
+                                     CalibrationData& calibration);
+  static void ExtractOffsetParameters(const std::array<uint16_t, EEPROM_COUNT>& ee_data,
+                                      CalibrationData& calibration);
+  static void ExtractKtaPixelParameters(const std::array<uint16_t, EEPROM_COUNT>& ee_data,
+                                        CalibrationData& calibration);
+  static void ExtractKvPixelParameters(const std::array<uint16_t, EEPROM_COUNT>& ee_data,
+                                       CalibrationData& calibration);
+  static void ExtractCilcParameters(const std::array<uint16_t, EEPROM_COUNT>& ee_data,
+                                    CalibrationData& calibration);
   static LibXR::ErrorCode ExtractDeviatingPixels(
-      const std::array<uint16_t, EEPROM_COUNT>& ee_data,
-      CalibrationData& calibration);
-  static bool HasUsableEepromDump(
-      const std::array<uint16_t, EEPROM_COUNT>& words);
+      const std::array<uint16_t, EEPROM_COUNT>& ee_data, CalibrationData& calibration);
+  static bool HasUsableEepromDump(const std::array<uint16_t, EEPROM_COUNT>& words);
 
   static void WorkerEntry(MLX90640* self);
   void WorkerLoop();
@@ -278,16 +249,14 @@ class MLX90640 : public LibXR::Application {
 
   LibXR::ErrorCode ReadWords(uint8_t slave_addr, uint16_t start_address,
                              uint16_t word_count, uint16_t* data);
-  LibXR::ErrorCode WriteWord(uint8_t slave_addr, uint16_t write_address,
-                              uint16_t data);
+  LibXR::ErrorCode WriteWord(uint8_t slave_addr, uint16_t write_address, uint16_t data);
   void SetFrequency(int freq);
   LibXR::ErrorCode GeneralReset();
   bool DumpEeprom();
   bool ParseCalibration();
   bool CaptureSubpage(FrameBuffer& frame);
-  void ProcessFrame(const FrameBuffer& frame,
-                    float emissivity, float reflected_temperature_shift,
-                    ProcessingResult& result) const;
+  void ProcessFrame(const FrameBuffer& frame, float emissivity,
+                    float reflected_temperature_shift, ProcessingResult& result) const;
   bool SetRefreshRate(uint8_t refresh_rate);
   bool SetMode(bool use_chess_mode);
   bool SynchronizeFrameStatus();
@@ -295,19 +264,13 @@ class MLX90640 : public LibXR::Application {
   bool TriggerMeasurement();
   bool ValidateFrame(const FrameBuffer& frame) const;
   bool ValidateAuxData(const FrameBuffer& frame) const;
-  float GetAmbientTemperature(
-      const FrameBuffer& frame) const;
+  float GetAmbientTemperature(const FrameBuffer& frame) const;
   float GetSupplyVoltage(const FrameBuffer& frame) const;
-  void CalculateImage(const FrameBuffer& frame,
-                      ProcessingResult& result) const;
-  void CalculateTemperature(const FrameBuffer& frame,
-                            float emissivity, float reflected_temperature,
-                            ProcessingResult& result) const;
-  void CorrectBadPixels(
-      const std::array<uint16_t,
-                       BAD_PIXEL_TABLE_SIZE>& pixels,
-      std::array<float, PIXEL_COUNT>& field,
-      uint8_t mode) const;
+  void CalculateImage(const FrameBuffer& frame, ProcessingResult& result) const;
+  void CalculateTemperature(const FrameBuffer& frame, float emissivity,
+                            float reflected_temperature, ProcessingResult& result) const;
+  void CorrectBadPixels(const std::array<uint16_t, BAD_PIXEL_TABLE_SIZE>& pixels,
+                        std::array<float, PIXEL_COUNT>& field, uint8_t mode) const;
   bool IsPixelBad(uint16_t pixel) const;
 
   RefreshRate refresh_rate_;
@@ -345,5 +308,3 @@ class MLX90640 : public LibXR::Application {
   ThermalImage image_frame_ = {};
   ThermalStats stats_ = {};
 };
-
-
