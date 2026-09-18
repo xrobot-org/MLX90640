@@ -71,11 +71,22 @@ class MLX90640
     bool ready = false;
   };
 
-  MLX90640(LibXR::I2C& external_i2c_name, LibXR::RamFS* external_ramfs,
-           RefreshRate refresh_rate, float emissivity, float reflected_temperature_shift,
-           bool use_chess_mode, const char* temperature_topic_name,
-           const char* image_topic_name, const char* stats_topic_name,
-           uint8_t i2c_address = 0x33);
+  struct Param
+  {
+    RefreshRate refresh_rate;
+    float emissivity;
+    float reflected_temperature_shift;
+    bool use_chess_mode;
+    const char* temperature_topic_name;
+    const char* image_topic_name;
+    const char* stats_topic_name;
+    uint8_t i2c_address;
+  };
+
+  MLX90640(
+      LibXR::I2C& i2c,
+      LibXR::RamFS* ramfs = nullptr,
+      const Param& param = {.refresh_rate = MLX90640::RefreshRate::HZ_8, .emissivity = 0.95f, .reflected_temperature_shift = 8.0f, .use_chess_mode = true, .temperature_topic_name = "mlx90640_temperature", .image_topic_name = "mlx90640_image", .stats_topic_name = "mlx90640_stats", .i2c_address = 0x33});
 
   void OnMonitor() {}
 

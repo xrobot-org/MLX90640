@@ -1384,28 +1384,27 @@ static const char* RefreshRateToString(MLX90640::RefreshRate refresh_rate)
   }
 }
 
-MLX90640::MLX90640(LibXR::I2C& external_i2c_name, LibXR::RamFS* external_ramfs,
-                   RefreshRate refresh_rate, float emissivity,
-                   float reflected_temperature_shift, bool use_chess_mode,
-                   const char* temperature_topic_name, const char* image_topic_name,
-                   const char* stats_topic_name, uint8_t i2c_address)
-    : refresh_rate_(refresh_rate),
-      emissivity_(std::clamp(emissivity, 0.1f, 1.0f)),
-      reflected_temperature_shift_(reflected_temperature_shift),
-      use_chess_mode_(use_chess_mode),
-      i2c_address_(i2c_address),
+MLX90640::MLX90640(
+      LibXR::I2C& i2c,
+      LibXR::RamFS* ramfs,
+      const Param& param)
+    : refresh_rate_(param.refresh_rate),
+      emissivity_(std::clamp(param.emissivity, 0.1f, 1.0f)),
+      reflected_temperature_shift_(param.reflected_temperature_shift),
+      use_chess_mode_(param.use_chess_mode),
+      i2c_address_(param.i2c_address),
       topic_temperature_(
-          LibXR::Topic::CreateTopic<ThermalFrame>(temperature_topic_name, nullptr, true)),
+          LibXR::Topic::CreateTopic<ThermalFrame>(param.temperature_topic_name, nullptr, true)),
       topic_image_(
-          LibXR::Topic::CreateTopic<ThermalImage>(image_topic_name, nullptr, true)),
+          LibXR::Topic::CreateTopic<ThermalImage>(param.image_topic_name, nullptr, true)),
       topic_stats_(
-          LibXR::Topic::CreateTopic<ThermalStats>(stats_topic_name, nullptr, true)),
-      i2c_(std::addressof(external_i2c_name)),
+          LibXR::Topic::CreateTopic<ThermalStats>(param.stats_topic_name, nullptr, true)),
+      i2c_(std::addressof(i2c)),
       cmd_file_(LibXR::RamFS::CreateFile("mlx90640", CommandFunc, this)),
       i2c_read_block_(i2c_sem_),
       i2c_write_block_(i2c_sem_)
 {
-  if (auto* ramfs = external_ramfs; ramfs != nullptr)
+  if (ramfs != nullptr)
   {
     ramfs->Add(cmd_file_);
     cmd_registered_ = true;
