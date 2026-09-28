@@ -88,8 +88,6 @@ class MLX90640
       LibXR::RamFS* ramfs,
       const Param& param = {.refresh_rate = MLX90640::RefreshRate::HZ_8, .emissivity = 0.95f, .reflected_temperature_shift = 8.0f, .use_chess_mode = true, .temperature_topic_name = "mlx90640_temperature", .image_topic_name = "mlx90640_image", .stats_topic_name = "mlx90640_stats", .i2c_address = 0x33});
 
-  void OnMonitor() {}
-
  private:
   static constexpr uint8_t DEFAULT_ADDRESS = 0x33;
   static constexpr std::size_t AUX_COUNT = 64U;
