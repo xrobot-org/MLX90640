@@ -124,10 +124,15 @@ class MLX90640
    * @param param 构造参数。
    *              Construction parameters.
    */
-  MLX90640(
-      LibXR::I2C& i2c,
-      LibXR::RamFS* ramfs,
-      const Param& param = {.refresh_rate = MLX90640::RefreshRate::HZ_8, .emissivity = 0.95f, .reflected_temperature_shift = 8.0f, .use_chess_mode = true, .temperature_topic_name = "mlx90640_temperature", .image_topic_name = "mlx90640_image", .stats_topic_name = "mlx90640_stats", .i2c_address = 0x33});
+  MLX90640(LibXR::I2C& i2c, LibXR::RamFS* ramfs,
+           const Param& param = {.refresh_rate = MLX90640::RefreshRate::HZ_8,
+                                 .emissivity = 0.95f,
+                                 .reflected_temperature_shift = 8.0f,
+                                 .use_chess_mode = true,
+                                 .temperature_topic_name = "mlx90640_temperature",
+                                 .image_topic_name = "mlx90640_image",
+                                 .stats_topic_name = "mlx90640_stats",
+                                 .i2c_address = 0x33});
 
  private:
   static constexpr uint8_t DEFAULT_ADDRESS = 0x33;
