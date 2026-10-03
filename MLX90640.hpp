@@ -17,72 +17,113 @@ depends: []
 #include "ramfs.hpp"
 #include "thread.hpp"
 
+/**
+ * @brief MLX90640 32x24 红外热成像传感器驱动，发布温度、图像和统计 Topic。
+ *        Driver for the MLX90640 32x24 thermal IR array sensor; publishes
+ *        temperature, image and statistics Topics.
+ */
 class MLX90640
 {
  public:
-  static constexpr std::size_t WIDTH = 32;
-  static constexpr std::size_t HEIGHT = 24;
-  static constexpr std::size_t PIXEL_COUNT = WIDTH * HEIGHT;
+  static constexpr std::size_t WIDTH = 32;                    ///< 像素列数 Pixel columns
+  static constexpr std::size_t HEIGHT = 24;                   ///< 像素行数 Pixel rows
+  static constexpr std::size_t PIXEL_COUNT = WIDTH * HEIGHT;  ///< 像素总数 Pixel count
 
+  /**
+   * @brief 刷新率，枚举值等于控制寄存器中的刷新率位。
+   *        Refresh rate; the value equals the refresh-rate bits of the control
+   *        register.
+   */
   enum class RefreshRate : uint8_t
   {
-    HZ_0_5 = 0,
-    HZ_1 = 1,
-    HZ_2 = 2,
-    HZ_4 = 3,
-    HZ_8 = 4,
-    HZ_16 = 5,
-    HZ_32 = 6,
-    HZ_64 = 7,
+    HZ_0_5 = 0,  ///< 0.5 Hz
+    HZ_1 = 1,    ///< 1 Hz
+    HZ_2 = 2,    ///< 2 Hz
+    HZ_4 = 3,    ///< 4 Hz
+    HZ_8 = 4,    ///< 8 Hz
+    HZ_16 = 5,   ///< 16 Hz
+    HZ_32 = 6,   ///< 32 Hz
+    HZ_64 = 7,   ///< 64 Hz
   };
 
+  /**
+   * @brief 温度帧，由温度 Topic 发布。
+   *        Temperature frame published on the temperature Topic.
+   */
   struct ThermalFrame
   {
-    uint32_t frame_counter = 0;
-    float ambient_temperature = 0.0f;
-    float reflected_temperature = 0.0f;
-    float emissivity = 0.95f;
-    uint8_t subpage = 0;
-    uint8_t mode = 1;
-    std::array<float, PIXEL_COUNT> temperature = {};
+    uint32_t frame_counter = 0;          ///< 帧计数 Frame counter
+    float ambient_temperature = 0.0f;    ///< 环境温度，℃ Ambient temperature, °C
+    float reflected_temperature = 0.0f;  ///< 反射温度，℃ Reflected temperature, °C
+    float emissivity = 0.95f;            ///< 发射率 Emissivity
+    uint8_t subpage = 0;                 ///< 最近读取的子页 Last subpage read
+    uint8_t mode = 1;  ///< 1 棋盘，0 交错 Readout mode: 1 chess, 0 interleaved
+    std::array<float, PIXEL_COUNT> temperature = {};  ///< 像素温度，℃ Pixel temps, °C
   };
 
+  /**
+   * @brief 图像帧，由图像 Topic 发布。
+   *        Image frame published on the image Topic.
+   */
   struct ThermalImage
   {
-    uint32_t frame_counter = 0;
-    float min_value = 0.0f;
-    float max_value = 0.0f;
-    std::array<float, PIXEL_COUNT> image = {};
+    uint32_t frame_counter = 0;                 ///< 帧计数 Frame counter
+    float min_value = 0.0f;                     ///< 图像最小值 Minimum image value
+    float max_value = 0.0f;                     ///< 图像最大值 Maximum image value
+    std::array<float, PIXEL_COUNT> image = {};  ///< 补偿后的图像值 Compensated image
   };
 
+  /**
+   * @brief 统计帧，由统计 Topic 发布。
+   *        Statistics frame published on the statistics Topic.
+   */
   struct ThermalStats
   {
-    uint32_t frame_counter = 0;
-    float ambient_temperature = 0.0f;
-    float reflected_temperature = 0.0f;
-    float supply_voltage = 0.0f;
-    float min_temperature = 0.0f;
-    float max_temperature = 0.0f;
-    float average_temperature = 0.0f;
-    float center_temperature = 0.0f;
-    uint16_t min_index = 0;
-    uint16_t max_index = 0;
-    uint8_t bad_pixel_count = 0;
-    bool ready = false;
+    uint32_t frame_counter = 0;          ///< 帧计数 Frame counter
+    float ambient_temperature = 0.0f;    ///< 环境温度，℃ Ambient temperature, °C
+    float reflected_temperature = 0.0f;  ///< 反射温度，℃ Reflected temperature, °C
+    float supply_voltage = 0.0f;         ///< 供电电压，V Supply voltage, V
+    float min_temperature = 0.0f;        ///< 最低温，℃ Minimum temperature, °C
+    float max_temperature = 0.0f;        ///< 最高温，℃ Maximum temperature, °C
+    float average_temperature = 0.0f;    ///< 平均温度，℃ Average temperature, °C
+    float center_temperature = 0.0f;     ///< 中心温度，℃ Center temperature, °C
+    uint16_t min_index = 0;              ///< 最低温像素索引 Minimum pixel index
+    uint16_t max_index = 0;              ///< 最高温像素索引 Maximum pixel index
+    uint8_t bad_pixel_count = 0;         ///< EEPROM 标记坏点数 Bad pixels in EEPROM
+    bool ready = false;                  ///< 已有统计 Statistics available
   };
 
+  /**
+   * @brief 构造参数。
+   *        Construction parameters.
+   */
   struct Param
   {
-    RefreshRate refresh_rate;
-    float emissivity;
+    RefreshRate refresh_rate;  ///< 刷新率 Refresh rate
+    float emissivity;  ///< 发射率，限制在 0.1 到 1.0 Emissivity, clamped to 0.1..1.0
+    /// 反射温度 = 环境温度 - 该值，℃
+    /// Reflected temperature = ambient temperature - this value, °C
     float reflected_temperature_shift;
-    bool use_chess_mode;
-    const char* temperature_topic_name;
-    const char* image_topic_name;
-    const char* stats_topic_name;
-    uint8_t i2c_address;
+    bool use_chess_mode;  ///< true 棋盘读出，false 交错 true chess, false interleaved
+    const char* temperature_topic_name;  ///< 温度 Topic 名称 Temperature Topic name
+    const char* image_topic_name;        ///< 图像 Topic 名称 Image Topic name
+    const char* stats_topic_name;        ///< 统计 Topic 名称 Statistics Topic name
+    uint8_t i2c_address;                 ///< 传感器 7 位地址 7-bit sensor address
   };
 
+  /**
+   * @brief 构造 MLX90640：读取 EEPROM 并解析校准，设置读出模式与刷新率，创建工作线程。
+   *        Construct MLX90640: read the EEPROM and parse the calibration, set the
+   *        readout mode and refresh rate, and create the worker thread.
+   *
+   * @param i2c 传感器所在的 I2C 总线，时钟先设为 100 kHz，再设为 400 kHz。
+   *            I2C bus of the sensor; its clock is set to 100 kHz, then 400 kHz.
+   * @param ramfs 接收 `mlx90640` 命令的 RamFS，为 nullptr 时不注册命令。
+   *              RamFS that receives the `mlx90640` command; no command is
+   *              registered when it is nullptr.
+   * @param param 构造参数。
+   *              Construction parameters.
+   */
   MLX90640(
       LibXR::I2C& i2c,
       LibXR::RamFS* ramfs,
