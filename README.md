@@ -111,7 +111,7 @@ An instance written by `xrobot instance add xrobot-org/MLX90640`, with `i2c` and
 ```yaml
 modules:
   - module: xrobot-org/MLX90640
-    id: mlx90640
+    id: mlx90640_0
     args:
       - i2c: i2c1
       - ramfs: ramfs
