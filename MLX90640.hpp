@@ -2,7 +2,7 @@
 
 // clang-format off
 /* === MODULE MANIFEST V2 ===
-module_description: Melexis MLX90640 32x24 红外热成像传感器驱动模块 / Driver module for the Melexis MLX90640 32x24 thermal IR array sensor
+module_description: Melexis MLX90640 32x24 红外热成像传感器驱动模块 / Driver Module for the Melexis MLX90640 32x24 thermal IR array sensor
 depends: []
 === END MANIFEST === */
 // clang-format on
