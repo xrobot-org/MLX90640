@@ -1,0 +1,14 @@
+MLX90640
+========
+
+This repository is licensed under the Apache License 2.0 (see LICENSE).
+
+MLX90640.cpp, MLX90640.hpp
+  The EEPROM calibration extraction (Extract*Parameters, ExtractDeviatingPixels,
+  CheckAdjacentPixels), the temperature and image calculation, and the frame /
+  auxiliary-data validation and bad-pixel correction routines are a C++
+  adaptation of the Melexis MLX90640 driver library.
+  Upstream: https://github.com/melexis/mlx90640-library, functions/MLX90640_API.c
+            (compared with revision f6be7ca1d4a55146b705f3d347f84b773b29cc86).
+  Copyright (C) 2017 Melexis N.V.
+  License: Apache License 2.0, the same license as this repository (see LICENSE).
